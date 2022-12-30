@@ -57,3 +57,28 @@ clean_up = VectorAssembler(inputCols=['idf_token', 'length'], outputCol='feature
 # Create and run a data processing Pipeline
 from pyspark.ml import Pipeline
 data_prep_pipeline = Pipeline(stages=[pos_neg_to_num, tokenizer, stopremove, hashingTF, idf, clean_up])
+
+
+# Fit and transform the pipeline
+cleaner = data_prep_pipeline.fit(data_df)
+cleaned = cleaner.transform(data_df)
+
+# Show label and resulting features
+cleaned.select(['label','features']).show()
+
+# Break data down into a training set and a testing set
+training, testing = cleaned.randomSplit([0.7, 0.3], 21)
+
+from pyspark.ml.classification import NaiveBayes
+# Create a Naive Bayes model and fit training data
+nb = NaiveBayes()
+predictor = nb.fit(training)
+
+# Transform the model with the testing data
+test_results = predictor.transform(testing)
+test_results.show(5)
+
+from pyspark.ml.evaluation import BinaryClassificationEvaluator
+acc_eval = BinaryClassificationEvaluator(labelCol='label', rawPredictionCol='prediction')
+acc = acc_eval.evaluate(test_results)
+print("Accuracy of model at predicting reviews was: %f" % acc)
